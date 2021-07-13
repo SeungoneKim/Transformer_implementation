@@ -9,7 +9,7 @@ class Encoder(nn.Module):
     def __init__(self, enc_vocab_size, src_max_len, 
                  model_dim, hidden_dim, num_head, num_layer, drop_prob, device):
         super(Encoder,self).__init__()
-        self.embedding = TrnasformerEmbedding(enc_vocab_size, model_dim, src_max_len, drop_prob, device)
+        self.embedding = TransformerEmbedding(enc_vocab_size, model_dim, src_max_len, drop_prob, device)
         
         self.layers = nn.ModuleList([EncoderLayer(model_dim, hidden_dim, num_head, 
                                                   drop_prob) for _ in range(num_layer)])
@@ -43,8 +43,8 @@ class Decoder(nn.Module):
 
 class LangaugeModelingHead(nn.Module):
     def __init__(self, dec_vocab_size, model_dim):
-        super(LanguageModelingHead,self).__init__()
-        self.linearlayer(model_dim, dec_vocab_size)
+        super(LangaugeModelingHead,self).__init__()
+        self.linearlayer = nn.Linear(model_dim, dec_vocab_size)
         
     def forward(self, decoder_output):
         return self.linearlayer(decoder_output)
@@ -63,7 +63,7 @@ class TransformersModel(nn.Module):
                  model_dim, hidden_dim, num_head, num_layer, drop_prob, device)
         self.Decoder = Decoder(dec_vocab_size, max_len,
                  model_dim, hidden_dim, num_head, num_layer, drop_prob, device)
-        self.LMHead = LanguageModelingHead(dec_vocab_size, model_dim)
+        self.LMHead = LangaugeModelingHead(dec_vocab_size, model_dim)
         
     def forward(self, src_tensor, tgt_tensor):
         enc_mask = self.generate_padding_mask(src_tensor, src_tensor, "src","src")
@@ -129,3 +129,16 @@ class TransformersModel(nn.Module):
         mask = torch.tril(torch.ones(query_length,key_length)).type(torch.BoolTensor).to(device)
         
         return mask
+
+# e.g. model = build_model(0,0,1,50265,50265,768,768,8,6,512,0.1)
+# The number of parameters: 172603737 elements
+def build_model(src_pad_idx, tgt_pad_idx, tgt_sos_idx, 
+                enc_vocab_size, dec_vocab_size, model_dim, hidden_dim, 
+                num_head, num_layer, max_len, drop_prob):
+    
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = TransformersModel(src_pad_idx, tgt_pad_idx, tgt_sos_idx, 
+                enc_vocab_size, dec_vocab_size, model_dim, hidden_dim, 
+                num_head, num_layer, max_len, drop_prob,device)
+    
+    return model.cuda() if torch.cuda.is_available() else model

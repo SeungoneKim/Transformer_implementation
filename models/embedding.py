@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 class TokenEmbedding(nn.Embedding):
     def __init__(self, vocab_size, model_dim):
-        super(TokenEmbedding, self).__init__(vocab_size, model_dim, padding_idx=0)
+        super(TokenEmbedding, self).__init__(vocab_size, model_dim, padding_idx=1)
 
 class PositionalEncoding(nn.Module):
     def __init__(self, model_dim, max_len, device):
