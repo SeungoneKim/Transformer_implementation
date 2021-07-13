@@ -3,6 +3,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 from transformers import RobertaTokenizer
 
+# pretrained BPE Tokenizer
+from transformers import RobertaTokenizer
+"""
+tokenizer = Tokenizer()
+
+print(tokenizer.get_vocab_size())
+print()
+print(tokenizer.get_vocab())
+
+50265
+"""
 class Tokenizer(nn.Module):
     def __init__(self):
         super(Tokenizer,self).__init__()

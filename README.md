@@ -1,9 +1,9 @@
 # Implementation of [Attention is All You Need]
 
-PyTorch implementation of transformer model from "Attention is All You Need" <br>
-By_ Seungone Kim <br>
-(Yonsei University, SoftComputing LAB) <br>
-louisdebroglie@yonsei.ac.kr <br>
+PyTorch implementation of transformer model from "Attention is All You Need"
+By_ Seungone Kim
+(Yonsei University, SoftComputing LAB)
+louisdebroglie@yonsei.ac.kr
 
 ### Requirements
 torch==1.8.1

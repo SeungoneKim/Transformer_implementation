@@ -4,10 +4,10 @@ import torch.nn.functional as F
 from attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
 
 class EncoderLayer(nn.Module):
-    def __init__(self, model_dim, hidden_dim, num_head, drop_prob):
+    def __init__(self, model_dim, key_dim, value_dim, hidden_dim, num_head, drop_prob):
         super(EncoderLayer,self).__init__()
         
-        self.attention = MultiHeadAttention(model_dim, model_dim, model_dim, num_head)
+        self.attention = MultiHeadAttention(model_dim, key_dim, value_dim, num_head)
         self.normalization1 = nn.LayerNorm(model_dim)
         self.dropout1 = nn.Dropout(drop_prob)
         
@@ -27,14 +27,14 @@ class EncoderLayer(nn.Module):
         return tensor
 
 class DecoderLayer(nn.Module):
-    def __init__(self, model_dim, hidden_dim, num_head, drop_prob):
+    def __init__(self, model_dim, key_dim, value_dim, hidden_dim, num_head, drop_prob):
         super(DecoderLayer,self).__init__()
         
-        self.self_attention = MultiHeadAttention(model_dim, model_dim, model_dim, num_head)
+        self.self_attention = MultiHeadAttention(model_dim, key_dim, value_dim, num_head)
         self.normalization1 = nn.LayerNorm(model_dim)
         self.dropout1 = nn.Dropout(drop_prob)
         
-        self.enc_dec_attention = MultiHeadAttention(model_dim, model_dim, model_dim, num_head)
+        self.enc_dec_attention = MultiHeadAttention(model_dim, key_dim, value_dim, num_head)
         self.normalization2 = nn.LayerNorm(model_dim)
         self.dropout2 = nn.Dropout(drop_prob)
         

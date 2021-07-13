@@ -20,3 +20,17 @@ parser.add_argument('--pad_idx',type=int, default=0)
 parser.add_argument('--bos_idx',type=int, default=1)
 parser.add_argument('--eos_idx',type=int, default=2)
 parser.add_argument('--unk_idx',type=int, default=3)
+
+def get_config():
+    return parser
+
+def set_random_fixed(seed_num):
+    random.seed(seed_num)
+    torch.manual_seed(seed_num)
+    torch.cuda.manual_seed(seed_num)
+    torch.cuda.manual_seed_all(seed_num)
+
+    torch.backends.cudnn.deterministic=True
+    torch.backends.cudnn.benchmark=False
+
+    np.random.seed(seed_num)
