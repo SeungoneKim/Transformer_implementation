@@ -1,10 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from transformers import RobertaTokenizer
 
 # pretrained BPE Tokenizer
-from transformers import RobertaTokenizer
+from transformers import BertTokenizer
 """
 tokenizer = Tokenizer()
 
@@ -14,24 +13,40 @@ print(tokenizer.get_vocab())
 
 50265
 """
-class Tokenizer(nn.Module):
-    def __init__(self):
-        super(Tokenizer,self).__init__()
-        self.tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
+class Tokenizer():
+    def __init__(self, language, max_len):
+        self.tokenizer = None
+        if language == 'de':
+            self.tokenizer = BertTokenizer.from_pretrained("bert-base-german-cased")
+            self.tokenizer.add_special_tokens({'pad_token': '<pad>',
+                                                'bos_token':'<s>','eos_token':'</s>',
+                                                'mask_token':'<mask>'})
+            
+        else:
+            self.tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
+            self.tokenizer.add_special_tokens({'pad_token': '<pad>',
+                                                'bos_token':'<s>','eos_token':'</s>',
+                                                'mask_token':'<mask>'})
+
         self.bos_token = self.tokenizer.bos_token
         self.eos_token = self.tokenizer.eos_token
         self.sep_token = self.tokenizer.sep_token
         self.cls_token = self.tokenizer.cls_token
         self.unk_token = self.tokenizer.cls_token
-        self.pad_token = self.tokenizer.pad_token
+        self.pad_token = self.tokenizer.pad_token     
         self.mask_token = self.tokenizer.mask_token
         self.vocab_size = self.tokenizer.vocab_size
+        self.supported_max_len = self.tokenizer.model_max_length
+        self.max_len = max_len
+
+        if self.max_len > self.supported_max_len:
+            assert "The length you have requested is too long."
     
     def encode(self, batch_sentences):
-        return self.tokenizer(batch_sentences, padding=True, truncation=True, return_tensors="pt")
+        return self.tokenizer(batch_sentences, padding=True, truncation=True, return_tensors="pt", max_length=self.max_len)
 
     def encode_multiple(self, batch_sentences1, batch_sentences2):
-        return self.tokenizer(batch_sentences1, batch_sentences2, padding=True, truncation=True, return_tensors="pt")
+        return self.tokenizer(batch_sentences1, batch_sentences2, padding=True, truncation=True, return_tensors="pt", max_length=self.max_len)
     
     def encode_into_input_ids(self, batch_sentence):
         return self.encode(batch_sentences)['input_ids']
