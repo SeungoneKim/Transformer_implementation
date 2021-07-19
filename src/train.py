@@ -24,23 +24,6 @@ class Trainer():
         # set logging
         logging.basicConfig(level=logging.INFO)
 
-        # set if pretrain mode or finetune mode & load dataloader
-        self.pretrain_mode= False
-        self.dataloader = False
-        
-        if self.args.pretrain_or_finetune is 'pretrain':
-            self.pretrain_mode = True
-            self.dataloader = get_pretrain_dataloader(self.args.dataset_name, 
-                                self.args.category_name, self.args.batch_size, 
-                                self.args.percentage)
-        else:
-            self.dataloader = get_finetune_dataloader(self.args.dataset_name, 
-                                self.args.x_name, self.args.y_name, 
-                                self.args.batch_size, self.args.percentage)
-
-        # load metric
-        self.metric = get_metric(self.args.metric)
-
         # set parameters needed for training
         self.best_epoch = 0
         self.best_score = 0
@@ -60,12 +43,24 @@ class Trainer():
         self.beta1 = self.args.beta1
         self.beta2 = self.args.beta2
 
-        self.max_len = self.args.max_len
-
+        self.enc_language = self.args.enc_language
+        self.dec_langauge = self.args.dec_langauge
+        self.enc_max_len = self.args.enc_max_len
+        self.dec_max_len = self.args.dec_max_len
 
         # build directory to save weights
         self.weightpath = args.weight_path
         os.mkdir(self.weightpath)
+
+        # build dataloader
+        self.train_dataloader, self.val_dataloader, self.test_dataloader = get_dataloader(
+            self.batch_size, self.enc_language, self.dec_language, self.enc_max_len, self.dec_max_len,
+            self.args.dataset_name, self.args.dataset_type, self.args.category_type,
+            self.args.x_name, self.args.y_name, self.args.percentage
+        )
+
+        # load metric
+        self.metric = get_metric(self.args.metric)
         
         # build model
         self.model = build_model(self.args.pad_idx, self.args.pad_idx, self.args.bos_idx, 
@@ -81,36 +76,37 @@ class Trainer():
         
         # build lossfn
         self.lossfn = load_lossfn(self.args.lossfn)
+        self.lossfn.ignore_index(self.args.dec_pad_idx)
+
+        
 
     def train(self):
         
-        current_mode='default'
-        if self.pretrain_mode is True:
-            current_mode = 'PRETRAIN'
-        else:
-            current_mode = 'FINETUNE'
-
+        # logging message
         logging.info('#################################################')
         logging.info('You have started training the model.')
-        logging.info('Your current mode is',current_mode)
         logging.info('#################################################')
-        if self.pretrain_mode is True:
-            self.pretrain()
-        else:
-            self.finetune()
-        
 
-    def pretrain(self):
+        # set randomness of training procedure fixed
+        self.set_random()
+        
+        # build directory to save to model's weights
+        self.build_directory()
 
         # set initial variables for training (outside epoch)
         train_batch_num = len(train_dataloader)
         validation_batch_num = len(val_dataloader)
+        test_batch_num = len(test_dataloader)
 
         best_epoch=0
         best_score=0
         least_loss = float('inf')
-        
 
+        # save information of the procedure of training
+        training_history=[]
+        validation_history=[]
+        
+        # start of looping through training data
         for epoch_idx in range(self.n_epoch):
             logging.info('#################################################')
             logging.info(f"Epoch : {epoch_idx} / {n_epoch}")
@@ -130,7 +126,7 @@ class Trainer():
             ########################
             #### Training Phase ####
             ########################
-            for batch in tqdm(enumerate(self.dataloader)):
+            for batch in tqdm(enumerate(self.train_dataloader)):
                 # move batch of data to gpu
                 encoder_input_ids = batch['encoder_input_ids'].to(device)
                 encoder_attention_mask = batch['encoder_attention_mask'].to(device)
@@ -139,8 +135,10 @@ class Trainer():
                 decoder_attention_mask = batch['decoder_attention_mask'].to(device)
 
                 # compute model output and loss
-                model_output = self.model(encoder_input_ids, decoder_input_ids)
-                loss = self.lossfn(model_output)
+                model_output = self.model(encoder_input_ids, decoder_input_ids) # [bs,sl,vocab_dec]
+                reshaped_model_output = model_output.contiguous().view(-1,model_output.shape[-1]) # [bs*sl,vocab_dec]
+                reshaped_decoded_labels = decoder.contiguous().view(-1) # [bs*sl,vocab_dec]
+                loss = self.lossfn(reshaped_model_output, reshaped_decoder_labels)
 
                 # clear gradients, and compute gradient with current batch
                 optimizer.zero_grad()
@@ -164,8 +162,24 @@ class Trainer():
             training_mean_loss_per_epoch = training_loss_per_epoch / train_batch_num
             training_history.append(training_mean_loss_per_epoch)
 
-    def finetune(self):
-        NotImplementedError
+
+        # switch model to eval mode
+        self.model.eval()
+
+        # set initial variables for training (inside epoch)
+        validation_loss_per_epoch=0.0 
+        validation_score_per_epoch=0.0
+
+        ##########################
+        #### Validation Phase ####
+        ##########################
+
+
+    def build_directory():
+        # Making directory to store model pth
+        curpath = os.getcwd()
+        weightpath = os.path.join(curpath,'weights')
+        os.mkdir(weightpath)
 
     def set_random(seed_num):
         set_random_fixed(seed_num)

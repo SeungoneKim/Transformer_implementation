@@ -68,7 +68,7 @@ class TransformersModel(nn.Module):
                  model_dim, key_dim, value_dim, hidden_dim, num_head, num_layer, drop_prob, device)
         self.Decoder = Decoder(dec_vocab_size, max_len,
                  model_dim, key_dim, value_dim, hidden_dim, num_head, num_layer, drop_prob, device)
-        self.LMHead = LangaugeModelingHead(dec_vocab_size, model_dim)
+        self.LMHead = LangaugeModelingHead(model_dim, dec_vocab_size)
         
     def forward(self, src_tensor, tgt_tensor):
         enc_mask = self.generate_padding_mask(src_tensor, src_tensor, "src","src")

@@ -43,10 +43,10 @@ class Tokenizer():
             assert "The length you have requested is too long."
     
     def encode(self, batch_sentences):
-        return self.tokenizer(batch_sentences, padding=True, truncation=True, return_tensors="pt", max_length=self.max_len)
+        return self.tokenizer(batch_sentences, padding="max_length", truncation=True, return_tensors="pt", max_length=self.max_len)
 
     def encode_multiple(self, batch_sentences1, batch_sentences2):
-        return self.tokenizer(batch_sentences1, batch_sentences2, padding=True, truncation=True, return_tensors="pt", max_length=self.max_len)
+        return self.tokenizer(batch_sentences1, batch_sentences2, padding="max_length", truncation=True, return_tensors="pt", max_length=self.max_len)
     
     def encode_into_input_ids(self, batch_sentence):
         return self.encode(batch_sentences)['input_ids']
@@ -66,16 +66,13 @@ class Tokenizer():
     def encode_multiple_into_attention_mask(self, batch_sentences1, batch_sentences2):
         return self.encode_multiple(batch_sentences1, batch_sentences2)['attention_mask']
     
-    def decode(self, encoded_inputs):
+    def decode(self, encoded_input_ids):
         decoded_output=[]
-        for ids in encoded_inputs["input_ids"]:
-            decoded_output.append( [self.tokenizer.decode(ids)] )
-        return decoded_output
-    
-    def decode_input_ids(self, encoded_input_ids):
-        decoded_output=[]
-        for ids in encoded_inputs:
-            decoded_output.append( [self.tokenizer.decode(ids)] )
+        for sub_batch in encoded_input_ids:
+            decoded_sub_batch = []
+            for ids in sub_batch:
+                    decoded_sub_batch.append( [self.tokenizer.decode(ids)] )
+            decoded_output.append( decoded_sub_batch )
         return decoded_output
     
     def get_vocab_size(self):

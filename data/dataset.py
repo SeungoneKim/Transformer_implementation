@@ -29,8 +29,8 @@ class TransformerDataset(Dataset):
         return self.data_len
     
     def __getitem__(self, index):
-        encoded_datax = self.enc_tokenizer.encode(self.data[index]['de'])
-        encoded_datay = self.dec_tokenizer.encode(self.data[index]['en'])
+        encoded_datax = self.enc_tokenizer.encode(self.data[index][self.enc_language])
+        encoded_datay = self.dec_tokenizer.encode(self.data[index][self.dec_language])
         
         # batch of data that the dataloader will provide during training
         batch ={}
@@ -39,10 +39,15 @@ class TransformerDataset(Dataset):
         batch['decoder_input_ids'] = encoded_datay.input_ids
         batch['labels'] = encoded_datay.input_ids.clone()
         batch['decoder_attention_mask'] = encoded_datay.attention_mask
-
+        
+        print(batch)
+        print(batch['encoder_input_ids'].size())
+        print(batch['decoder_input_ids'].size())
+        
         # check if length is fixed to max_len
-        assert all([x.size() == self.encoder_max_len for x in batch['encoder_input_ids']])
-        assert all([x.size() == self.decoder_max_len for x in batch['decoder_input_ids']])
+        #assert all([x.size() == self.encoder_max_len for x in batch['encoder_input_ids']])
+        #assert all([x.size() == self.decoder_max_len for x in batch['decoder_input_ids']])
+
 
         return batch
 

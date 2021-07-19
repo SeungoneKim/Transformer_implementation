@@ -29,6 +29,7 @@ parser.add_argument('--weight_decay',type=float, default=5e-4)
 parser.add_argument('--decay_epoch',type=int, default=100)
 # tokenizer
 ### encoder(en)
+parser.add_argument('--enc_langauge',type=str, default='de')
 parser.add_argument('--enc_pad_idx',type=int, default=0) # [PAD]
 parser.add_argument('--enc_bos_idx',type=int, default=1) # <s>
 parser.add_argument('--enc_eos_idx',type=int, default=2) # </s>
@@ -37,6 +38,7 @@ parser.add_argument('--enc_cls_idx',type=int, default=101)  # [CLS]
 parser.add_argument('--enc_sep_idx',type=int, default=102)  # [SEP]
 parser.add_argument('--enc_mask_idx',type=int,default=103) # [MASK]
 ### decoder(de)
+parser.add_argument('--dec_language',type=str, default='en')
 parser.add_argument('--dec_pad_idx',type=int, default=0) # [PAD]
 parser.add_argument('--dec_bos_idx',type=int, default=1) # <s>
 parser.add_argument('--dec_eos_idx',type=int, default=2) # </s>
@@ -46,10 +48,11 @@ parser.add_argument('--dec_sep_idx',type=int, default=)  # [SEP]
 parser.add_argument('--dec_mask_idx',type=int,default=4) # [MASK]
 # trainer
 parser.add_argument('--pretrain_or_finetune',type=str, default='finetune')
-parser.add_argument('--metric',type=str, default='accuracy_score')
+parser.add_argument('--metric',type=str, default='bleu')
 parser.add_argument('--lossfn',type=str, default= 'CrossEntropyLoss')
 # dataloader
 parser.add_argument('--dataset_name',type=str, default=None)
+parser.add_argument('--dataset_type',type=str, default=None)
 parser.add_argument('--category_name',type=str, default=None)
 parser.add_argument('--x_name',type=str, default=None)
 parser.add_argument('--y_name',type=str, default=None)
