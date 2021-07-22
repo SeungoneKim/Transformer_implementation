@@ -8,7 +8,11 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--device', type=str, default='cuda:0,1,2,3')
 # hyperparameters
 parser.add_argument('--epoch', type=int, default=1000)
-parser.add_argument('--batch_size', type=int, default=128)
+parser.add_argument('--train_batch_size', type=int, default=128)
+parser.add_argument('--display_step',type=int, default=10000)
+parser.add_argument('--val_batch_size',type=int, default=64)
+parser.add_argument('--test_batch_size',type=int,default=64)
+parser.add_argument('--display_examples',type=int, default=1000)
 parser.add_argument('--model_dim', type=int, default=512)
 parser.add_argument('--key_dim',type=int, default = 64)
 parser.add_argument('--value_dim',type=int, default=64)
@@ -26,7 +30,6 @@ parser.add_argument('--dec_max_len',type=int, default=256)
 parser.add_argument('--enc_vocab_size',type=int, default=28996)
 parser.add_argument('--dec_vocab_size',type=int, default=30000)
 parser.add_argument('--weight_decay',type=float, default=5e-4)
-parser.add_argument('--decay_epoch',type=int, default=100)
 # tokenizer
 ### encoder(en)
 parser.add_argument('--enc_langauge',type=str, default='de')
@@ -43,8 +46,8 @@ parser.add_argument('--dec_pad_idx',type=int, default=0) # [PAD]
 parser.add_argument('--dec_bos_idx',type=int, default=1) # <s>
 parser.add_argument('--dec_eos_idx',type=int, default=2) # </s>
 parser.add_argument('--dec_unk_idx',type=int, default=3) # [UNK]
-parser.add_argument('--dec_cls_idx',type=int, default=)  # [CLS]
-parser.add_argument('--dec_sep_idx',type=int, default=)  # [SEP]
+#parser.add_argument('--dec_cls_idx',type=int, default=)  # [CLS]
+#parser.add_argument('--dec_sep_idx',type=int, default=)  # [SEP]
 parser.add_argument('--dec_mask_idx',type=int,default=4) # [MASK]
 # trainer
 parser.add_argument('--pretrain_or_finetune',type=str, default='finetune')
@@ -60,6 +63,7 @@ parser.add_argument('--percentage',type=int, default=100)
 # set path
 parser.add_argument('--cur_path',type=str, default=os.getcwd())
 parser.add_argument('--weight_path',type=str,default = os.path.join(os.getcwd(),'weights'))
+parser.add_argument('--final_model_path',type=str,default = os.path.join(os.getcwd(),'final_results'))
 
 def get_config():
     return parser

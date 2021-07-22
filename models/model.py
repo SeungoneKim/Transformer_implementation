@@ -85,6 +85,7 @@ class TransformersModel(nn.Module):
         output = self.LMHead(decoder_output)
         
         return output
+
     
     # applying mask(opt) : 0s are where we apply masking
     # pad_type =["src". "tgt"]
@@ -134,18 +135,7 @@ class TransformersModel(nn.Module):
         mask = torch.tril(torch.ones(query_length,key_length)).type(torch.BoolTensor).to(device)
         
         return mask
-"""
-model = build_model(src_pad_idx=0,tgt_pad_idx=0,tgt_sos_idx=1,
-                    enc_vocab_size=37000,dec_vocab_size=37000,
-                    model_dim=512, key_dim=64, value_dim=64, hidden_dim=2048,
-                    num_head=8,num_layer=6,
-                    max_len=256,drop_prob=0.1)
 
-params = list(model.parameters())
-print("The number of parameters:",sum([p.numel() for p in model.parameters() if p.requires_grad]), "elements")
-
-The number of parameters: 88597000 elements
-"""
 def build_model(src_pad_idx, tgt_pad_idx, tgt_sos_idx, 
                 enc_vocab_size, dec_vocab_size, 
                 model_dim, key_dim, value_dim, hidden_dim, 

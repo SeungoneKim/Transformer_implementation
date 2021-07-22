@@ -35,10 +35,10 @@ class TransformerDataset(Dataset):
         # batch of data that the dataloader will provide during training
         batch ={}
         batch['encoder_input_ids'] = encoded_datax.input_ids
-        batch['encoder_attention_mask'] = encoded_datax.attention_mask
+        batch['encoder_attention_mask'] = encoded_datax.attention_mask # will be generated in model as well
         batch['decoder_input_ids'] = encoded_datay.input_ids
         batch['labels'] = encoded_datay.input_ids.clone()
-        batch['decoder_attention_mask'] = encoded_datay.attention_mask
+        batch['decoder_attention_mask'] = encoded_datay.attention_mask # will be generated in model as well
         
         print(batch)
         print(batch['encoder_input_ids'].size())

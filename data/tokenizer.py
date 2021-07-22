@@ -71,7 +71,7 @@ class Tokenizer():
         for sub_batch in encoded_input_ids:
             decoded_sub_batch = []
             for ids in sub_batch:
-                    decoded_sub_batch.append( [self.tokenizer.decode(ids)] )
+                    decoded_sub_batch.append( [self.tokenizer.decode(ids, skip_special_tokens=True)] )
             decoded_output.append( decoded_sub_batch )
         return decoded_output
     
