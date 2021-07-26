@@ -3,9 +3,12 @@ import sklearn.metrics as skm
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from datasets import list_metrics, load_metric
-from model import build_model
-from configs import get_config
+from datasets import load_metric
+from models.model import build_model
+from config.configs import get_config
+
+huggingface_metrics_list = ['bertscore','bleu','bleurt','coval','gleu','glue','meteor',
+                            'rouge','sacrebleu','seqeval','squad','squad_v2','xlni']
 
 sklearn_metrics_list = ['accuracy_score','f1_score','precision_score','recall_score',
                         'roc_auc_score','mean_squared_error','mean_absolute_error']
@@ -13,9 +16,9 @@ sklearn_metrics_list = ['accuracy_score','f1_score','precision_score','recall_sc
 lossfn_list = ['BCELoss','CrossEntropyLoss','KLDivLoss','BCEWithLogitsLoss',
                 'L1Loss','MSELoss','NLLLoss']
 
-def load_metric(metric_type):
+def load_metricfn(metric_type):
     metric= None
-    if metric_type in list_metrics():
+    if metric_type in huggingface_metrics_list:
         metric= load_metric(metric_type)
     elif metric_type in sklearn_metrics_list:
         if metric_type == 'accuracy_score':
@@ -37,13 +40,13 @@ def load_metric(metric_type):
 
     return metric
 
-def load_lossfn(lossfn_type):
+def load_lossfn(lossfn_type,ignore_idx):
     lossfn= None
     if lossfn_type in lossfn_list:
         if lossfn_type == 'BCELoss':
             lossfn = nn.BCELoss()
         elif lossfn_type == 'CrossEntropyLoss':
-            lossfn = nn.CrossEntropyLoss()
+            lossfn = nn.CrossEntropyLoss(ignore_index=ignore_idx)
         elif lossfn_type == 'KLDivLoss':
             lossfn = nn.KLDivLoss()
         elif lossfn_type == 'BCEWithLogitsLoss':
@@ -149,4 +152,4 @@ def load_bestmodel(load_path):
     best_model.load_state_dict(checkpoint['model_state_dict'])
     best_optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
 
-    return model, optimizer
+    return best_model, best_optimizer

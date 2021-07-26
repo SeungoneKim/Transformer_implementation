@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
+from models.attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
 
 class EncoderLayer(nn.Module):
     def __init__(self, model_dim, key_dim, value_dim, hidden_dim, num_head, drop_prob):
@@ -39,11 +39,11 @@ class DecoderLayer(nn.Module):
         self.dropout2 = nn.Dropout(drop_prob)
         
         self.ffn = FeedForward(model_dim, hidden_dim, drop_prob)
-        self.normalization = nn.LayerNorm(model_dim)
+        self.normalization3 = nn.LayerNorm(model_dim)
         self.dropout3 = nn.Dropout(drop_prob)
         
-    def forward(self, enc_tensor, dec_tensor, source_mask, target_mask):
-        residual = tgt_tensor
+    def forward(self, dec_tensor, enc_tensor, source_mask, target_mask):
+        residual = dec_tensor
         tensor = self.self_attention(query=dec_tensor,key=dec_tensor,value=dec_tensor,mask=target_mask)
         tensor = self.dropout1(self.normalization1(tensor+residual))
         

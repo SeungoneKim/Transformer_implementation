@@ -1,4 +1,5 @@
-from dataset import TransformerDataset_total
+from data.dataset import TransformerDataset_total
+from torch.utils.data import Dataset, DataLoader
 
 def get_dataloader(train_batch_size, val_batch_size, test_batch_size,
                 enc_language, dec_language, enc_max_len, dec_max_len,

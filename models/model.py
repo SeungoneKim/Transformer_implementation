@@ -1,9 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from embedding import TokenEmbedding, PositionalEncoding, TransformerEmbedding
-from attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
-from layers import EncoderLayer, DecoderLayer
+from models.embedding import TokenEmbedding, PositionalEncoding, TransformerEmbedding
+from models.attention import ScaledDotProductAttention, MultiHeadAttention, FeedForward
+from models.layers import EncoderLayer, DecoderLayer
 
 class Encoder(nn.Module):
     def __init__(self, enc_vocab_size, src_max_len, 
@@ -46,7 +46,7 @@ class Decoder(nn.Module):
         return decoder_output
 
 class LangaugeModelingHead(nn.Module):
-    def __init__(self, dec_vocab_size, model_dim):
+    def __init__(self, model_dim, dec_vocab_size):
         super(LangaugeModelingHead,self).__init__()
         self.linearlayer = nn.Linear(model_dim, dec_vocab_size)
         
@@ -54,19 +54,18 @@ class LangaugeModelingHead(nn.Module):
         return self.linearlayer(decoder_output)
 
 class TransformersModel(nn.Module):
-    def __init__(self, src_pad_idx, tgt_pad_idx, tgt_sos_idx, 
+    def __init__(self, src_pad_idx, tgt_pad_idx,
                 enc_vocab_size, dec_vocab_size, 
                 model_dim, key_dim, value_dim, hidden_dim, 
-                num_head, num_layer, max_len, drop_prob, device):
+                num_head, num_layer, enc_max_len, dec_max_len, drop_prob, device):
         super(TransformersModel, self).__init__()
         self.src_pad_idx = src_pad_idx
         self.tgt_pad_idx = tgt_pad_idx
-        self.tgt_sos_idx = tgt_sos_idx
         self.device = device
         
-        self.Encoder = Encoder(enc_vocab_size, max_len, 
+        self.Encoder = Encoder(enc_vocab_size, enc_max_len, 
                  model_dim, key_dim, value_dim, hidden_dim, num_head, num_layer, drop_prob, device)
-        self.Decoder = Decoder(dec_vocab_size, max_len,
+        self.Decoder = Decoder(dec_vocab_size, dec_max_len,
                  model_dim, key_dim, value_dim, hidden_dim, num_head, num_layer, drop_prob, device)
         self.LMHead = LangaugeModelingHead(model_dim, dec_vocab_size)
         
@@ -113,9 +112,10 @@ class TransformersModel(nn.Module):
         
         # convert query and key into 4-dimensional tensor
         # query = (batch_size, 1, query_length, 1) -> (batch_size, 1, query_length, key_length)
-        # key = (batch_size, 1, 1, key_length) -> (batch_size, 1, query_length, key_length)
         query = query.ne(query_pad_idx).unsqueeze(1).unsqueeze(3)
         query = query.repeat(1,1,1,key_length)
+
+        # key = (batch_size, 1, 1, key_length) -> (batch_size, 1, query_length, key_length)
         key = key.ne(key_pad_idx).unsqueeze(1).unsqueeze(2)
         key = key.repeat(1,1,query_length,1)
         
@@ -132,19 +132,19 @@ class TransformersModel(nn.Module):
         key_length = key.size(1)
         
         # create triangular mask
-        mask = torch.tril(torch.ones(query_length,key_length)).type(torch.BoolTensor).to(device)
+        mask = torch.tril(torch.ones(query_length,key_length)).type(torch.BoolTensor).to(self.device)
         
         return mask
 
-def build_model(src_pad_idx, tgt_pad_idx, tgt_sos_idx, 
+def build_model(src_pad_idx, tgt_pad_idx,
                 enc_vocab_size, dec_vocab_size, 
                 model_dim, key_dim, value_dim, hidden_dim, 
-                num_head, num_layer, max_len, drop_prob):
+                num_head, num_layer, enc_max_len, dec_max_len, drop_prob):
     
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = TransformersModel(src_pad_idx, tgt_pad_idx, tgt_sos_idx, 
+    model = TransformersModel(src_pad_idx, tgt_pad_idx, 
                 enc_vocab_size, dec_vocab_size, 
                 model_dim, key_dim, value_dim, hidden_dim, 
-                num_head, num_layer, max_len, drop_prob,device)
+                num_head, num_layer, enc_max_len, dec_max_len, drop_prob,device)
     
     return model.cuda() if torch.cuda.is_available() else model

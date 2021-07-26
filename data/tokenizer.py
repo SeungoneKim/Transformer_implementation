@@ -18,21 +18,23 @@ class Tokenizer():
         self.tokenizer = None
         if language == 'de':
             self.tokenizer = BertTokenizer.from_pretrained("bert-base-german-cased")
-            self.tokenizer.add_special_tokens({'pad_token': '<pad>',
-                                                'bos_token':'<s>','eos_token':'</s>',
-                                                'mask_token':'<mask>'})
+            self.tokenizer.add_special_tokens({'pad_token': '[PAD]',
+                                                'bos_token':'[CLS]','eos_token':'[SEP]',
+                                                'cls_token':'[CLS]','sep_token':'[SEP]',
+                                                'mask_token':'[MASK]','unk_token':'[UNK]'})
             
         else:
             self.tokenizer = BertTokenizer.from_pretrained("bert-base-cased")
-            self.tokenizer.add_special_tokens({'pad_token': '<pad>',
-                                                'bos_token':'<s>','eos_token':'</s>',
-                                                'mask_token':'<mask>'})
+            self.tokenizer.add_special_tokens({'pad_token': '[PAD]',
+                                                'bos_token':'[CLS]','eos_token':'[SEP]',
+                                                'cls_token':'[CLS]','sep_token':'[SEP]',
+                                                'mask_token':'[MASK]','unk_token':'[UNK]'})
 
         self.bos_token = self.tokenizer.bos_token
         self.eos_token = self.tokenizer.eos_token
         self.sep_token = self.tokenizer.sep_token
         self.cls_token = self.tokenizer.cls_token
-        self.unk_token = self.tokenizer.cls_token
+        self.unk_token = self.tokenizer.unk_token
         self.pad_token = self.tokenizer.pad_token     
         self.mask_token = self.tokenizer.mask_token
         self.vocab_size = self.tokenizer.vocab_size
@@ -68,11 +70,9 @@ class Tokenizer():
     
     def decode(self, encoded_input_ids):
         decoded_output=[]
-        for sub_batch in encoded_input_ids:
-            decoded_sub_batch = []
-            for ids in sub_batch:
-                    decoded_sub_batch.append( [self.tokenizer.decode(ids, skip_special_tokens=True)] )
-            decoded_output.append( decoded_sub_batch )
+        for ids in encoded_input_ids:
+                decoded_output.append( [self.tokenizer.decode(ids, skip_special_tokens=True)] )
+
         return decoded_output
     
     def get_vocab_size(self):

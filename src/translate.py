@@ -9,11 +9,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from tokenizer import Tokenizer
+from data.tokenizer import Tokenizer
+from util.utils import load_bestmodel
 
 def translate(args, src_sentence, generated_max_length=100):
     # prepare best model
-    best_model_path = os.path.join(self.args.final_model_path,"bestmodel.pth")
+    best_model_path = os.path.join(args.final_model_path,"bestmodel.pth")
     try:
         best_model, _= load_bestmodel(best_model_path)
         best_model.eval()
@@ -78,7 +79,7 @@ def translate(args, src_sentence, generated_max_length=100):
     translated_sentence = ""
     for tokens in translated_result:
         translated_sentence += tokens
-        if token !='.':
+        if tokens !='.':
             translated_sentence += " "
 
     return translated_sentence

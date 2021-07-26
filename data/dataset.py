@@ -1,5 +1,6 @@
 from datasets import load_dataset, list_datasets # huggingface library
-from tokenizer import Tokenizer
+from data.tokenizer import Tokenizer
+from torch.utils.data import Dataset
 
 class TransformerDataset(Dataset):
     def __init__(self, enc_language, dec_language, enc_max_len, dec_max_len, 
@@ -40,9 +41,6 @@ class TransformerDataset(Dataset):
         batch['labels'] = encoded_datay.input_ids.clone()
         batch['decoder_attention_mask'] = encoded_datay.attention_mask # will be generated in model as well
         
-        print(batch)
-        print(batch['encoder_input_ids'].size())
-        print(batch['decoder_input_ids'].size())
         
         # check if length is fixed to max_len
         #assert all([x.size() == self.encoder_max_len for x in batch['encoder_input_ids']])

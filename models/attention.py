@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,29 +8,35 @@ class ScaledDotProductAttention(nn.Module):
         super(ScaledDotProductAttention, self).__init__()
         
     def forward(self, query, key, value, mask=None):
-        batch_size, num_head, sequence_length, size_per_head = key.size()
+        _1, _2, query_sequence_length, _3 = query.size()
+        batch_size, num_head, key_sequence_length, size_per_head = key.size()
         
         # matmul between query and key
-        key =  key.view(batch_size, num_head, size_per_head, sequence_length)
+        query = query.view(batch_size, num_head, query_sequence_length, size_per_head)
+        key =  key.view(batch_size, num_head, size_per_head, key_sequence_length)
+        attention_score = torch.einsum('abcd, abde -> abce', query, key) # [batch_size, num_head, query_sl, key_sl]
         
         # scale
-        attention_score = torch.matmul(query,key) / math.sqrt(size_per_head)
+        attention_score = attention_score / math.sqrt(size_per_head)
         
         # applying mask(opt) : 0s are where we apply masking
         if mask is not None:
-            mask = mask.unsqueeze(1) # (batch_size, 1, sequence_length, sequence_length)
+            # mask= (batch_size, 1, query_sequence_length, key_sequence_length)
             attention_score = attention_score.masked_fill(mask==0,-1e9)
         
         # applying softmax
         attention_score = F.softmax(attention_score, dim=-1)
         
         # matmul between attention_score and value
-        return torch.matmul(attention_score,value), attention_score
+        result = attention_score@value
+
+        return result, attention_score
 
 class MultiHeadAttention(nn.Module):
     def __init__(self, model_dim, key_dim, value_dim, num_head):
         super(MultiHeadAttention, self).__init__()
         self.model_dim = model_dim
+        # query_dim is same with key_dim
         self.key_dim = key_dim
         self.value_dim = value_dim
         self.num_head = num_head
@@ -38,7 +45,7 @@ class MultiHeadAttention(nn.Module):
         self.Wk = nn.Linear(model_dim, key_dim)
         self.Wv = nn.Linear(model_dim, value_dim)
         self.attention = ScaledDotProductAttention()
-        self.Wo = nn.Linear(model_dim, model_dim)
+        self.Wo = nn.Linear(value_dim, model_dim)
         
     def forward(self, query, key, value, mask=None):
         # linearly project queries, key and values
@@ -56,6 +63,7 @@ class MultiHeadAttention(nn.Module):
         
         # concat output back to 3-dimensional tensor of (batch_size, sequence_length, hidden_size)
         output = self.multihead_concat(attention_output)
+        #print(output.size())
         output = self.Wo(output)
         
         return output
@@ -68,6 +76,7 @@ class MultiHeadAttention(nn.Module):
         return tensor.view(batch_size, self.num_head, sequence_length, size_per_head)
     
     def multihead_concat(self, tensor):
+        #print(tensor.size())
         batch_size, num_head, sequence_length, size_per_head = tensor.size()
         
         hidden_size = num_head * size_per_head
@@ -86,5 +95,5 @@ class FeedForward(nn.Module):
         self.dropout = nn.Dropout(drop_prob)
         
     def forward(self, tensor):
-        tensor = self.dropout(self.relu(self.linearlayer1(x)))
+        tensor = self.dropout(self.relu(self.linearlayer1(tensor)))
         return self.linearlayer2(tensor)
