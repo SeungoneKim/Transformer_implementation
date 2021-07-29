@@ -6,6 +6,7 @@ import torch.optim as optim
 from datasets import load_metric
 from models.model import build_model
 from config.configs import get_config
+from nltk.translate.bleu_score import sentence_bleu
 
 huggingface_metrics_list = ['bertscore','bleu','bleurt','coval','gleu','glue','meteor',
                             'rouge','sacrebleu','seqeval','squad','squad_v2','xlni']
@@ -18,7 +19,9 @@ lossfn_list = ['BCELoss','CrossEntropyLoss','KLDivLoss','BCEWithLogitsLoss',
 
 def load_metricfn(metric_type):
     metric= None
-    if metric_type in huggingface_metrics_list:
+    if metric_type == 'bleu':
+        metric = sentence_bleu
+    elif metric_type in huggingface_metrics_list:
         metric= load_metric(metric_type)
     elif metric_type in sklearn_metrics_list:
         if metric_type == 'accuracy_score':
@@ -66,14 +69,13 @@ def load_optimizer(model, learning_rate, weight_decay, beta1, beta2, eps):
                         weight_decay=weight_decay, betas=[beta1, beta2], eps=eps)
 
 # Linear Scheduler with WarmUp
-def load_scheduler(optimizer, num_warmup_steps, num_training_steps, last_epoch=-1):
+def load_scheduler(optimizer, factor, patience):
     
-    def lr_lambda(current_step):
-        if current_step < num_warmup_steps:
-            return float(current_step) / float(max(1,num_warmup_steps))
-        return max(0.0, float(num_training_steps-current_step) / float(max(1, num_training_steps - num_warmup_steps)))
-    
-    return optim.lr_scheduler.LambdaLR(optimizer, lr_lambda, last_epoch)
+    return optim.lr_scheduler.ReduceLROnPlateau(optimizer= optimizer, verbose=True, factor=factor, patience=patience)
+
+def initialize_weights(m):
+    if hasattr(m, 'weight') and m.weight.dim() >1:
+        nn.init.kaiming_uniform_(m.weight.data)
 
 # Convert index into word
 def convert_idx_to_word(idx_sent, vocab):

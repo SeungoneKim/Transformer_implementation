@@ -70,8 +70,11 @@ class Tokenizer():
     
     def decode(self, encoded_input_ids):
         decoded_output=[]
-        for ids in encoded_input_ids:
-                decoded_output.append( [self.tokenizer.decode(ids, skip_special_tokens=True)] )
+        for batch in encoded_input_ids:
+            batch_output=[]
+            for ids in batch:
+                batch_output.append( [self.tokenizer.decode(ids, skip_special_tokens=True)] )
+            decoded_output.append(batch_output)
 
         return decoded_output
     
@@ -90,3 +93,11 @@ class Tokenizer():
         self.tokenizer.add_tokens(list_of_words)
         self.vocab_size = len(self.tokenizer)
         return self.vocab_size
+
+    def get_special_tokens(self):
+        return [self.tokenizer.pad_token, self.tokenizer.eos_token, self.tokenizer.cls_token,
+                self.tokenizer.bos_token, self.tokenizer.sep_token, self.tokenizer.mask_token,
+                self.tokenizer.unk_token]
+
+    def get_end_token(self):
+        return self.tokenizer.sep_token

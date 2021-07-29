@@ -1,22 +1,24 @@
 import logging
+import sys
 from config.configs import get_config
 from src.train import Trainer
 from src.translate import translate
 
 def main(parser, usage_mode):
+
     if usage_mode == 'train':
-        logging.info('#################################################')
-        logging.info('You have entered train mode.')
-        logging.info('#################################################')
+        sys.stdout.write('#################################################\n')
+        sys.stdout.write('You have entered train mode.\n')
+        sys.stdout.write('#################################################\n')
         
         # train with Trainer
         trainer = Trainer(parser)
         trainer.train_test()
 
     elif usage_mode == 'translate' or usage_mode == 'evaluate' or usage_mode == 'inference':
-        logging.info('#################################################')
-        logging.info('You have entered inference mode.')
-        logging.info('#################################################')
+        sys.stdout.write('#################################################\n')
+        sys.stdout.write('You have entered inference mode.\n')
+        sys.stdout.write('#################################################\n')
         
         while True:
             # get user input
@@ -34,12 +36,10 @@ def main(parser, usage_mode):
         assert "You have gave wrong mode"
 
 if __name__ == "__main__":
-    # set logging
-    logging.basicConfig(level=logging.INFO)
 
-    logging.info('#################################################')
-    logging.info('You have entered __main__.')
-    logging.info('#################################################')
+    sys.stdout.write('#################################################\n')
+    sys.stdout.write('You have entered __main__.\n')
+    sys.stdout.write('#################################################\n')
     
     # define ArgumentParser
     parser = get_config()
@@ -50,6 +50,6 @@ if __name__ == "__main__":
     # run main
     main(parser, usage_mode)
 
-    logging.info('#################################################')
-    logging.info('You are exiting __main__.')
-    logging.info('#################################################')
+    sys.stdout.write('#################################################\n')
+    sys.stdout.write('You are exiting __main__.\n')
+    sys.stdout.write('#################################################\n')

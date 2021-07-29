@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 import logging
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,10 +10,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import transformers
 from config.configs import set_random_fixed, get_path_info
 from data.dataloader import get_dataloader
 from data.tokenizer import Tokenizer
-from util.utils import load_metricfn, load_optimizer, load_scheduler, load_lossfn, save_checkpoint, load_checkpoint, save_bestmodel, time_measurement, count_parameters
+from util.utils import (load_metricfn, load_optimizer, load_scheduler, load_lossfn, 
+                        save_checkpoint, load_checkpoint, save_bestmodel, 
+                        time_measurement, count_parameters, initialize_weights)
 from models.model import build_model
 
 class Trainer():
@@ -41,6 +44,9 @@ class Trainer():
         self.beta2 = self.args.adam_beta2
 
         self.warmup_steps = self.args.warm_up
+        self.factor = self.args.factor
+        self.patience = self.args.patience
+        self.clip = self.args.clip
 
         self.enc_language = self.args.enc_language
         self.dec_language = self.args.dec_language
@@ -73,13 +79,15 @@ class Trainer():
                         self.args.enc_vocab_size, self.args.dec_vocab_size, 
                         self.args.model_dim, self.args.key_dim, self.args.value_dim, self.args.hidden_dim, 
                         self.args.num_heads, self.args.num_layers, self.args.enc_max_len, self.args.dec_max_len, self.args.drop_prob)
+        
+        self.model.apply(initialize_weights)
 
         # build optimizer
         self.optimizer = load_optimizer(self.model, self.lr, self.weight_decay, 
                                         self.beta1, self.beta2, self.eps)
         
         # build scheduler
-        self.scheduler = load_scheduler(self.optimizer, self.warmup_steps, self.t_total)
+        self.scheduler = load_scheduler(self.optimizer, self.factor, self.patience)
         
         # build lossfn
         self.lossfn = load_lossfn(self.args.lossfn,self.args.dec_pad_idx)
@@ -91,15 +99,15 @@ class Trainer():
 
     def train(self):
         
-        # set logging
-        logging.basicConfig(level=logging.INFO)
+        # set logging        
+        logging.basicConfig(level=logging.WARNING)
         
         # logging message
-        logging.info('#################################################')
-        logging.info('You have started training the model.')
-        logging.info('Your model size is : ')
-        logging.info(count_parameters(self.model))
-        logging.info('#################################################')
+        sys.stdout.write('#################################################\n')
+        sys.stdout.write('You have started training the model.\n')
+        print('Your model size is : ')
+        count_parameters(self.model)
+        sys.stdout.write('#################################################\n')
 
         # set randomness of training procedure fixed
         self.set_random(516)
@@ -128,9 +136,10 @@ class Trainer():
             # measure time when epoch start
             start_time = time.time()
             
-            logging.info('#################################################')
-            logging.info(f"Epoch : {epoch_idx+1} / {self.n_epoch}")
-            logging.info('#################################################')
+            sys.stdout.write('#################################################\n')
+            sys.stdout.write(f"Epoch : {epoch_idx+1} / {self.n_epoch}")
+            sys.stdout.write('\n')
+            sys.stdout.write('#################################################\n')
 
             ########################
             #### Training Phase ####
@@ -171,6 +180,9 @@ class Trainer():
                 self.optimizer.zero_grad()
                 loss.backward()
 
+                # clip gradients
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(),self.clip)
+
                 # update gradients
                 self.optimizer.step()
 
@@ -179,12 +191,13 @@ class Trainer():
                 training_loss_per_epoch += training_loss_per_iteration
 
                 # compute bleu score using model output and labels(reshaped ver)
-                training_score_per_iteration = self.compute_bleu(reshaped_model_output,reshaped_decoder_labels)
+                training_score_per_iteration,_1,_2 = self.compute_bleu(model_output,decoder_labels)
                 training_score_per_epoch += training_score_per_iteration["bleu"]
 
                 # Display summaries of training procedure with period of display_step
                 if ((batch_idx+1) % self.display_step==0) and (batch_idx>0):
-                    print(f"Training Phase |  Epoch: {epoch_idx+1} |  Step: {batch_idx+1} / {train_batch_num} | loss : {training_loss_per_iteration} | score : {training_score_per_iteration['bleu']}")
+                    sys.stdout.write(f"Training Phase |  Epoch: {epoch_idx+1} |  Step: {batch_idx+1} / {train_batch_num} | loss : {training_loss_per_iteration} | score : {training_score_per_iteration['bleu']}")
+                    sys.stdout.write('\n')
 
             # update scheduler
             self.scheduler.step()
@@ -233,7 +246,7 @@ class Trainer():
                 validation_loss_per_epoch += validation_loss_per_iteration
 
                 # compute bleu score using model output and labels(reshaped ver)
-                validation_score_per_iteration = self.compute_bleu(reshaped_model_output,reshaped_decoder_labels)
+                validation_score_per_iteration,_1,_2 = self.compute_bleu(reshaped_model_output,reshaped_decoder_labels)
                 validation_score_per_epoch += validation_score_per_iteration["bleu"]
 
             # save validation loss of each epoch, in other words, the average of every batch in the current epoch
@@ -244,7 +257,8 @@ class Trainer():
             validation_mean_score_per_epoch = validation_score_per_epoch / validation_batch_num
 
             # Display summaries of validation result after all validation is done
-            logging.info(f"Validation Phase |  Epoch: {epoch_idx+1} | loss : {validation_mean_loss_per_epoch} | score : {validation_mean_score_per_epoch}")
+            sys.stdout.write(f"Validation Phase |  Epoch: {epoch_idx+1} | loss : {validation_mean_loss_per_epoch} | score : {validation_mean_score_per_epoch}")
+            sys.stdout.write('\n')
 
             # Model Selection Process using validation_mean_score_per_epoch
             if (validation_mean_loss_per_epoch < best_model_loss):
@@ -260,13 +274,13 @@ class Trainer():
 
             # measure the amount of time spent in this epoch
             epoch_mins, epoch_secs = time_measurement(start_time, end_time)
-            logging.info(f"Time spent in {epoch_idx+1} is {epoch_mins} minuites and {epoch_secs} seconds")
+            sys.stdout.write(f"Time spent in {epoch_idx+1} is {epoch_mins} minuites and {epoch_secs} seconds\n")
             
             # measure the total amount of time spent until now
             total_time_spent += (end_time - start_time)
             total_time_spent_mins = int(total_time_spent/60)
             total_time_spent_secs = int(total_time_spent - (total_time_spent_mins*60))
-            logging.info(f"Total amount of time spent until {epoch_idx+1} is {total_time_spent_mins} minuites and {total_time_spent_secs} seconds")
+            sys.stdout.write(f"Total amount of time spent until {epoch_idx+1} is {total_time_spent_mins} minuites and {total_time_spent_secs} seconds\n")
 
             # calculate how more time is estimated to be used for training
             avg_time_spent_secs = total_time_spent_secs / (epoch_idx+1)
@@ -274,22 +288,22 @@ class Trainer():
             estimated_left_time = avg_time_spent_secs * left_epochs
             estimated_left_time_mins = int(estimated_left_time/60)
             estimated_left_time_secs = int(estimated_left_time - (estimated_left_time_mins*60))
-            logging.info(f"Estimated amount of time until {self.n_epoch} is {estimated_left_time_mins} minuites and {estimated_left_time_secs} seconds")
+            sys.stdout.write(f"Estimated amount of time until {self.n_epoch} is {estimated_left_time_mins} minuites and {estimated_left_time_secs} seconds\n")
 
         # summary of whole procedure    
-        logging.info('#################################################')
-        logging.info(f"Training and Validation has ended.")
-        logging.info(f"Your best model was the model from epoch {best_model_epoch} and scored {self.args.metric} score : {best_model_score} and loss : {best_model_loss}")
-        logging.info('#################################################')
+        sys.stdout.write('#################################################\n')
+        sys.stdout.write(f"Training and Validation has ended.\n")
+        sys.stdout.write(f"Your best model was the model from epoch {best_model_epoch} and scored {self.args.metric} score : {best_model_score} and loss : {best_model_loss}\n")
+        sys.stdout.write('#################################################\n')
 
         return best_model_epoch, training_history, validation_history
     
     def test(self, best_model_epoch):
 
         # logging message
-        logging.info('#################################################')
-        logging.info('You have started testing the model.')
-        logging.info('#################################################')
+        sys.stdout.write('#################################################\n')
+        sys.stdout.write('You have started testing the model.\n')
+        sys.stdout.write('#################################################\n')
 
         # set randomness of training procedure fixed
         self.set_random(516)
@@ -342,7 +356,7 @@ class Trainer():
                 reshaped_decoder_labels = decoder_labels[:,1:].contiguous().view(-1) # [bs*(sl-1),vocab_dec]
                 
                 # compute bleu score using model output and labels(reshaped ver)
-                test_score_per_iteration = self.compute_bleu(reshaped_best_model_output,reshaped_decoder_labels)
+                test_score_per_iteration,_1,_2 = self.compute_bleu(reshaped_best_model_output,reshaped_decoder_labels)
                 test_score += test_score_per_iteration["bleu"]
                 
                 # Display examples of translation with period of display_examples
@@ -358,26 +372,26 @@ class Trainer():
                     decoded_labels = [label.strip() for label in decoded_labels]
 
                     # print out model_input(origin), model_output(pred) and labels(ground truth)
-                    logging.info(f"Testing Phase | Step: {batch_idx+1} / {test_batch_num}")
-                    logging.info("Original Sentence : ")
-                    logging.info(decoded_origins)
-                    logging.info("Ground Truth Translated Sentence : ")
-                    logging.info(decoded_labels)
-                    logging.info("Model Prediction - Translated Sentence : ")
-                    logging.info(decoded_preds)
+                    sys.stdout.write(f"Testing Phase | Step: {batch_idx+1} / {test_batch_num}\n")
+                    sys.stdout.write("Original Sentence : ")
+                    sys.stdout.write(decoded_origins)
+                    sys.stdout.write('\n')
+                    sys.stdout.write("Ground Truth Translated Sentence : ")
+                    sys.stdout.write(decoded_labels)
+                    sys.stdout.write('\n')
+                    sys.stdout.write("Model Prediction - Translated Sentence : ")
+                    sys.stdout.write(decoded_preds)
+                    sys.stdout.write('\n')
 
         # calculate test score
         test_score = test_score / test_batch_num
 
         # Evaluate summaries with period of display_steps
-        logging.info(f"Test Phase |  Best Epoch: {best_model_epoch+1} | score : {test_score}")
+        sys.stdout.write(f"Test Phase |  Best Epoch: {best_model_epoch+1} | score : {test_score}\n")
 
         # save best model
         save_bestmodel(best_model,self.optimizer,self.args,
                             os.path.join(self.args.final_model_path,"bestmodel.pth"))
-
-        # plot the result of training
-
 
         return best_model
 
@@ -390,6 +404,13 @@ class Trainer():
         plt.legend()
         plt.show()
 
+        cur_path = os.getcwd()
+        save_dir = os.path.join(curpath,'plot')
+        path = os.path.join(save_dir, 'train_validation_plot.png')
+        sys.stdout.write('Image of train, validation history saved as plot png!\n')
+        
+        plt.savefig(path)
+
     def build_directory(self):
         # Making directory to store model pth
         curpath = os.getcwd()
@@ -401,30 +422,66 @@ class Trainer():
 
     def compute_bleu(self, model_output, labels):
         # convert model_output into model_pred
-        # [bs*(sl-1),vocab_dec] -> [bs*(sl-1)]
-        model_pred = torch.argmax(model_output,dim=1)
+        # [bs,(sl-1),vocab_dec] -> [bs,(sl-1)]
+        model_pred = torch.argmax(model_output,dim=2)
 
-        # decode model_output and labels using Tokenizer
+        # decode model_output and labels using Tokenizer (int -> string)
         decoded_preds = self.decoder_tokenizer.decode(model_pred)
         decoded_labels = self.decoder_tokenizer.decode(labels)
 
         # post process text for evaluation
-        # decoded_preds format : [ ["token1", "token2", ... , "tokenN"] ]
-        # decoded_labels format : [ [["token1", "token2", ... , "tokenN"]] ]
-        decoded_preds = [pred[0].strip() for pred in decoded_preds]
-        decoded_labels = [label[0].strip() for label in decoded_labels]
-        decoded_preds = [decoded_preds]
-        decoded_labels = [[decoded_labels]]
+        preds_for_print = []  # ['sentence1','sentence2',...,'sentenceM']
+        labels_for_print = [] # ['sentence1','sentence2',...,'sentenceM']
+        preds_for_score = []  # ['token1','token2',...,'tokenN'] * M
+        labels_for_score = [] # [['token1','token2',...,'tokenN*']] * M
+        
+        # convert each token into a string to calculate the bleu score
+        for batch in decoded_preds:
+            preds_for_print_batch = ''
+            preds_for_score_batch = []
+            for pred in batch:
+                if (pred[0].strip().replace(' ','')) not in self.decoder_tokenizer.get_special_tokens():
+                    preds_for_print_batch += pred[0].strip().replace(' ','')
+                    preds_for_score_batch.append(pred[0].strip().replace(' ',''))
+                    preds_for_print_batch += ' '
+                # end translated result if [SEP] or </s> occurs
+                if (pred[0].strip()) == self.decoder_tokenizer.get_end_token():
+                    break
+            preds_for_print_batch = preds_for_print_batch.strip()
+            if preds_for_print_batch != '':
+                preds_for_print.append(preds_for_print_batch)
+            if preds_for_score_batch != []:
+                preds_for_score.append(preds_for_score_batch)
+        
+        # convert each token into a string to calculate the bleu score
+        for batch in decoded_labels:
+            labels_for_print_batch = ''
+            labels_for_score_batch = []
+            for label in batch[1:]:
+                if (label[0].strip().replace(' ','')) not in self.decoder_tokenizer.get_special_tokens():
+                    labels_for_print_batch += label[0].strip().replace(' ','')
+                    labels_for_score_batch.append(label[0].strip().replace(' ',''))
+                    labels_for_print_batch += ' '
+            labels_for_print_batch = labels_for_print_batch.strip()
+            if labels_for_print_batch != '':
+                labels_for_print.append(labels_for_print_batch)
+            if labels_for_score_batch != []:
+                labels_for_score.append([labels_for_score_batch])
 
         # compute bleu score
-        result = self.metric.compute(predictions=decoded_preds,references=decoded_labels)
-        result = {"bleu" : result['bleu']}
+        total_score= 0.0
+        total_length = 0
+        for batch_idx in range(len(preds_for_score)):
+            result = self.metric(hypothesis=preds_for_score[batch_idx], references=labels_for_score[batch_idx],weights=(1,0,0,0))
+            total_score += result
 
-        # count the length of model_output
-        prediction_lens = [np.count_nonzero(pred != self.decoder_tokenizer.pad_token) for pred in model_output]
-        result['translation_length'] = np.mean(prediction_lens)
+            prediction_lens = len(preds_for_print[batch_idx])
+            total_length += prediction_lens
+        iter_score = total_score/len(preds_for_score)
+        iter_length = total_length/len(preds_for_score)
+        iter_result = {"bleu" : iter_score,"translation_length" : iter_length}
 
         # round the result with 4 digit precision
-        result = {k: round(v,4) for k,v in result.items()}
+        iter_result = {k: round(v,4)*100 for k,v in iter_result.items()}
 
-        return result
+        return iter_result, preds_for_print, labels_for_print
